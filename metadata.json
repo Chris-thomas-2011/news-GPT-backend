@@ -1,0 +1,5 @@
+{
+  "name": "NDTV News Summarizer",
+  "description": "A clean and modern news aggregator that fetches 15 daily news stories from NDTV and provides detailed 15-line summaries for each, refreshed every 6 hours using Gemini AI.",
+  "requestFramePermissions": []
+}
