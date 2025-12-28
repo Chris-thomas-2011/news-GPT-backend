@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { NewsItem } from "../types";
+import { NewsItem } from "../types.ts";
 
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 

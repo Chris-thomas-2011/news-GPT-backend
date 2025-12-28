@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { NewsItem } from './types';
-import * as newsService from './services/newsService';
-import NewsCard from './components/NewsCard';
+import { NewsItem } from './types.ts';
+import * as newsService from './services/newsService.ts';
+import NewsCard from './components/NewsCard.tsx';
 
 const App: React.FC = () => {
   const [news, setNews] = useState<NewsItem[]>([]);

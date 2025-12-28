@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { NewsItem } from '../types';
+import { NewsItem } from '../types.ts';
 
 interface NewsCardProps {
   item: NewsItem;
