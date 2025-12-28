@@ -9,8 +9,9 @@ export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
   
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: "Search for the latest 15 news stories from NDTV (ndtv.com). For each story, provide: 1. The exact title. 2. The source URL. 3. A category. 4. The news date. 5. A summary consisting of exactly 15 separate sentences that, when combined, form a comprehensive paragraph.",
+    contents: "Search for the latest 15 headlines from NDTV (ndtv.com). For each, provide a title, direct link, category, date, and a very detailed 15-sentence paragraph summary. Ensure the response is strictly valid JSON.",
     config: {
+      systemInstruction: "You are a professional news aggregator. Your task is to fetch 15 news items from NDTV and return them in a specific JSON format. Do not include any text before or after the JSON. Each 'summaryLines' array MUST contain exactly 15 sentences. Ensure the 'url' is the direct news article link from ndtv.com.",
       tools: [{ googleSearch: {} }],
       responseMimeType: "application/json",
       responseSchema: {
@@ -24,11 +25,10 @@ export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
                 title: { type: Type.STRING },
                 url: { type: Type.STRING },
                 category: { type: Type.STRING },
-                date: { type: Type.STRING, description: "The publication date of the news article" },
+                date: { type: Type.STRING },
                 summaryLines: { 
                   type: Type.ARRAY, 
-                  items: { type: Type.STRING },
-                  description: "An array of exactly 15 sentences for the summary."
+                  items: { type: Type.STRING }
                 }
               },
               required: ["title", "url", "summaryLines", "date"]
@@ -40,43 +40,60 @@ export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
     }
   });
 
+  // Extract grounding information
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const groundingUrls = groundingChunks
     .map((chunk: any) => chunk.web?.uri)
     .filter((uri: string | undefined): uri is string => !!uri);
 
-  const rawText = response.text;
+  let rawText = response.text || "";
+  
+  // Clean potential markdown formatting
+  rawText = rawText.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
+
   try {
     const data = JSON.parse(rawText);
-    return (data.news || []).map((item: any, index: number) => {
-      const sourceUrl = item.url || (groundingUrls.length > 0 ? groundingUrls[index % groundingUrls.length] : 'https://www.ndtv.com');
+    const newsItems = (data.news || []).map((item: any, index: number) => {
+      // Fallback for missing URLs using grounding metadata
+      const sourceUrl = item.url && item.url.includes('ndtv.com') 
+        ? item.url 
+        : (groundingUrls.length > index ? groundingUrls[index] : 'https://www.ndtv.com');
       
       return {
         ...item,
         url: sourceUrl,
         id: `news-${Date.now()}-${index}`,
         timestamp: new Date().toISOString(),
-        groundingSources: groundingUrls
+        groundingSources: groundingUrls.slice(0, 5) // Include some verified sources for compliance
       };
     });
+
+    if (newsItems.length === 0) throw new Error("No news items found in response");
+    return newsItems;
+    
   } catch (e) {
-    console.error("Failed to parse news JSON", e);
-    throw new Error("Invalid response format from AI");
+    console.error("Critical Error: Failed to process news data.", e, "Raw response was:", rawText);
+    throw new Error("The news server returned an incompatible format. Please try again.");
   }
 };
 
 export const getStoredNews = (): NewsItem[] | null => {
-  const stored = localStorage.getItem('ndtv_news_cache');
-  if (!stored) return null;
+  try {
+    const stored = localStorage.getItem('ndtv_news_cache');
+    if (!stored) return null;
 
-  const parsed = JSON.parse(stored);
-  const now = Date.now();
-  
-  if (now - parsed.lastUpdated > REFRESH_INTERVAL_MS) {
-    return null; // Cache expired
+    const parsed = JSON.parse(stored);
+    const now = Date.now();
+    
+    // Check if 6 hours have passed
+    if (now - parsed.lastUpdated > REFRESH_INTERVAL_MS) {
+      return null;
+    }
+
+    return parsed.news;
+  } catch (e) {
+    return null;
   }
-
-  return parsed.news;
 };
 
 export const storeNews = (news: NewsItem[]) => {
