@@ -5,13 +5,15 @@ import { NewsItem } from "../types.ts";
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
+  // Use gemini-flash-latest which typically uses the default provided API key 
+  // without requiring the manual selection dialog for paid projects.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: "Search for the latest 15 headlines from NDTV (ndtv.com). For each, provide a title, direct link, category, date, and a very detailed 15-sentence paragraph summary. Ensure the response is strictly valid JSON.",
+    model: "gemini-flash-latest",
+    contents: "Search for the latest 15 headlines from NDTV (ndtv.com). For each article, provide a title, direct NDTV URL, category, date, and a summary consisting of exactly 15 separate detailed sentences.",
     config: {
-      systemInstruction: "You are a professional news aggregator. Your task is to fetch 15 news items from NDTV and return them in a specific JSON format. Do not include any text before or after the JSON. Each 'summaryLines' array MUST contain exactly 15 sentences. Ensure the 'url' is the direct news article link from ndtv.com.",
+      systemInstruction: "You are a news aggregator. Fetch 15 current news stories from NDTV. Return the data in a strict JSON format. Each 'summaryLines' array MUST contain exactly 15 sentences. Ensure the 'url' is the direct link to the article on ndtv.com.",
       tools: [{ googleSearch: {} }],
       responseMimeType: "application/json",
       responseSchema: {
@@ -40,7 +42,6 @@ export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
     }
   });
 
-  // Extract grounding information
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const groundingUrls = groundingChunks
     .map((chunk: any) => chunk.web?.uri)
@@ -48,13 +49,12 @@ export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
 
   let rawText = response.text || "";
   
-  // Clean potential markdown formatting
+  // Strip code block markers if present
   rawText = rawText.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
 
   try {
     const data = JSON.parse(rawText);
     const newsItems = (data.news || []).map((item: any, index: number) => {
-      // Fallback for missing URLs using grounding metadata
       const sourceUrl = item.url && item.url.includes('ndtv.com') 
         ? item.url 
         : (groundingUrls.length > index ? groundingUrls[index] : 'https://www.ndtv.com');
@@ -64,16 +64,16 @@ export const fetchLatestNDTVNews = async (): Promise<NewsItem[]> => {
         url: sourceUrl,
         id: `news-${Date.now()}-${index}`,
         timestamp: new Date().toISOString(),
-        groundingSources: groundingUrls.slice(0, 5) // Include some verified sources for compliance
+        groundingSources: groundingUrls.slice(0, 5)
       };
     });
 
-    if (newsItems.length === 0) throw new Error("No news items found in response");
+    if (newsItems.length === 0) throw new Error("No news items returned by AI");
     return newsItems;
     
   } catch (e) {
-    console.error("Critical Error: Failed to process news data.", e, "Raw response was:", rawText);
-    throw new Error("The news server returned an incompatible format. Please try again.");
+    console.error("JSON Parse Error:", e, "Raw Text:", rawText);
+    throw new Error("Received an invalid response format. Please try again.");
   }
 };
 
@@ -85,7 +85,6 @@ export const getStoredNews = (): NewsItem[] | null => {
     const parsed = JSON.parse(stored);
     const now = Date.now();
     
-    // Check if 6 hours have passed
     if (now - parsed.lastUpdated > REFRESH_INTERVAL_MS) {
       return null;
     }

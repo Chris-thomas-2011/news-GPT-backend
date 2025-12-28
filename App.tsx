@@ -33,7 +33,7 @@ const App: React.FC = () => {
       setLastUpdated(Date.now());
     } catch (err: any) {
       console.error("App Error:", err);
-      setError(err.message || "Failed to fetch current news. Please try again later.");
+      setError(err.message || "Failed to fetch current news. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ const App: React.FC = () => {
             </div>
             <h2 className="text-2xl font-black text-slate-900 mb-2">Fetching Live News</h2>
             <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Gemini AI is currently searching NDTV and crafting your 15-line summaries. This process takes about 10-15 seconds.
+              We are gathering the top 15 stories from NDTV and generating detailed summaries. This takes about 15 seconds.
             </p>
           </div>
         ) : error ? (
@@ -100,7 +100,7 @@ const App: React.FC = () => {
             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mx-auto mb-6">
               <i className="fas fa-bolt text-3xl"></i>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-3">Connection Error</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-3">Unable to Load News</h2>
             <p className="text-slate-500 mb-8 leading-relaxed">{error}</p>
             <button 
               onClick={() => loadNews(true)}
@@ -118,7 +118,7 @@ const App: React.FC = () => {
                   Live Updates
                 </div>
                 <h2 className="text-4xl font-black text-slate-900 tracking-tight">Top 15 Headlines</h2>
-                <p className="text-slate-500 mt-2 text-lg">Detailed 15-sentence summaries from NDTV.</p>
+                <p className="text-slate-500 mt-2 text-lg">Comprehensive 15-sentence summaries from NDTV.</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Synced</p>
@@ -143,7 +143,7 @@ const App: React.FC = () => {
             <i className="fas fa-shield-alt"></i>
           </div>
           <p className="text-slate-900 font-bold mb-1">NDTV News Summarizer</p>
-          <p className="text-slate-400 text-sm mb-6">Built with Google Gemini 3 Flash & React</p>
+          <p className="text-slate-400 text-sm mb-6">Built with Google Gemini AI & React</p>
           <div className="flex items-center justify-center gap-6 text-xs font-bold text-slate-400 uppercase tracking-widest">
             <span className="flex items-center gap-2"><i className="fas fa-check-circle text-green-500"></i> Auto-Sync Active</span>
             <span className="flex items-center gap-2"><i className="fas fa-check-circle text-green-500"></i> AI Verified</span>
